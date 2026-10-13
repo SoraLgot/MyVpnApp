@@ -1,5 +1,8 @@
 package com.mycompany.myvpn;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.net.VpnService;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -8,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final int VPN_REQUEST_CODE = 100;
     private boolean isConnected = false;
     private TextView statusText;
     private Button connectButton;
@@ -23,15 +27,44 @@ public class MainActivity extends AppCompatActivity {
         connectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                isConnected = !isConnected;
-                if (isConnected) {
-                    statusText.setText("ПОДКЛЮЧЁН");
-                    connectButton.setText("ОТКЛЮЧИТЬСЯ");
+                if (!isConnected) {
+                    Intent intent = VpnService.prepare(MainActivity.this);
+                    if (intent != null) {
+                        startActivityForResult(intent, VPN_REQUEST_CODE);
+                    } else {
+                        onActivityResult(VPN_REQUEST_CODE, Activity.RESULT_OK, null);
+                    }
                 } else {
-                    statusText.setText("НЕ ПОДКЛЮЧЁН");
-                    connectButton.setText("ПОДКЛЮЧИТЬСЯ");
+                    stopVpn();
                 }
             }
         });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == VPN_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            startVpn();
+        } else {
+            statusText.setText("РАЗРЕШЕНИЕ ОТКЛОНЕНО");
+        }
+    }
+
+    private void startVpn() {
+        Intent intent = new Intent(this, MyVpnService.class);
+        startService(intent);
+        isConnected = true;
+        statusText.setText("ПОДКЛЮЧЁН");
+        connectButton.setText("ОТКЛЮЧИТЬСЯ");
+    }
+
+    private void stopVpn() {
+        Intent intent = new Intent(this, MyVpnService.class);
+        intent.setAction("STOP");
+        startService(intent);
+        isConnected = false;
+        statusText.setText("НЕ ПОДКЛЮЧЁН");
+        connectButton.setText("ПОДКЛЮЧИТЬСЯ");
     }
 }
